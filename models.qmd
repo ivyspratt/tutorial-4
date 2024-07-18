@@ -1,0 +1,70 @@
+---
+title: "Models"
+author: "Ivy Spratt"
+execute:
+  echo: false
+  warning: false
+---
+```{r}
+#| label: setup
+#| message: FALSE
+
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(gtsummary)
+```
+
+```{r}
+#| label: poll_data
+#| message: FALSE
+#| echo: FALSE
+poll_data <- tibble(biden = c(rep(1, 655), 
+                              rep(0, 904)))
+
+slice_sample(poll_data, n = 10)
+```
+
+```{r}
+#| label: model
+#| cache: true
+
+fit_bern <- brm(formula = biden ~ 1, 
+    data = poll_data, 
+    family = bernoulli(), 
+    refresh = 0, 
+    silent = 2, 
+    seed = 9)
+```
+
+```{r}
+summary(fit_bern)
+```
+
+```{r}
+#| label: plot
+
+ndata <- tibble(.rows = 1)
+
+fit_bern |> 
+        add_epred_draws(newdata = ndata) |>
+                              select(.epred) |>
+  ggplot(aes(x = .epred))+
+    geom_density(aes(y = after_stat(count/sum(count))))+
+    scale_x_continuous(labels = scales::percent_format())+
+    scale_y_continuous(labels = scales::percent_format())+
+    labs(title = "Posteriror Distribution for ρ",
+         subtitle = "There is a 95% chance for a value between 39% and 45%",
+         x = "Proportion, ρ, of Red Beads in Urn",
+         y = "Probability")
+```
+Using data from a YouGov poll during March 10th-12th of 2024 of 1,559 US adult citizens, we try to answer the question of what proportion of voters will support Biden in the 2024 election. We do not know where the data was collected, and if the area was particularly "pro-Biden" or "pro-Trump." To calculate this, we use a Bayesian logistic model to estimate the proportion of voters voting for Biden, trying to find the intercept. The model reveals that the probability of support for Biden is about 41%, which would be innacurate if his popularity level changes between then and now, and plus or minus about 2.5%.
+$$ biden_i =  \mu + \epsilon_i $$
+
+
+```{r}
+tbl_regression(fit_bern, intercept = TRUE)
+```
+
+
+
